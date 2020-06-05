@@ -37,6 +37,11 @@ df_e = vaex.from_arrays(a=np.array(['X', 'Y', 'Z']),
                         x2=np.array([3.1, 25, np.nan]),
                         )
 
+df_f = vaex.from_arrays(f=np.array(['B', 'C', None]),
+                        w1=np.array(['dog', 'cat', 'mouse']),
+                        w2=np.array([True, False, True])
+                        )
+
 
 def test_no_on():
     # just adds the columns
@@ -305,3 +310,25 @@ def test_with_masked_no_short_circuit():
     assert dfj[:10].columns['j'].masked
     assert dfj['j'][:10].tolist() == [0, 1, 2, 3, 4, 5, 6, 7, 8, None]
     dfj['j'].tolist()  # make sure we can evaluate the whole column
+
+
+def test_join_f_c_left_none():
+    df = df_f.join(df_c, left_on='f', right_on='c', how='inner')
+    assert df.shape == (3, 6)
+    assert df.f.tolist() == ['B', 'C', None]
+    assert df.c.tolist() == ['B', 'C', None]
+    assert df.w1.tolist() == ['dog', 'cat', 'mouse']
+    assert df.w2.tolist() == [True, False, True]
+    assert df.z1.tolist() == [-1.0, -2.0, None]
+    assert df.z2.tolist() == [True, False, None]
+
+
+def test_join_f_c_inner_none():
+    df = df_f.join(df_c, left_on='f', right_on='c', how='inner')
+    assert df.shape == (2, 6)
+    assert df.f.tolist() == ['B', 'C']
+    assert df.c.tolist() == ['B', 'C']
+    assert df.w1.tolist() == ['dog', 'cat']
+    assert df.w2.tolist() == [True, False]
+    assert df.z1.tolist() == [-1.0, -2.0]
+    assert df.z2.tolist() == [True, False]
