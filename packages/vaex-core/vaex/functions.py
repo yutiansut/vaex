@@ -2741,3 +2741,24 @@ def stack(arrays, strict=False):
 def getitem(ar, item):
     slicer = (slice(None), item)
     return ar.__getitem__(slicer)
+
+
+@register_function()
+def _to_bins(ar, binner, *tail):
+    references = []
+    binners = []
+    for ar, binner in [(ar, binner), *tail]:
+        binners.append(binner)
+        # TODO: can we avoid the conversion to numpy?
+        ar = vaex.array_types.to_numpy(ar, strict=False)
+        binner.set_data(ar)
+        if np.ma.isMaskedArray(ar):
+            ar, mask = ar.data, np.ma.getmaskarray(ar)
+            binner.set_data(ar)
+            binner.set_data_mask(mask)
+            references.extend([ar, mask])
+        else:
+            binner.set_data(ar)
+            binner.clear_data_mask()
+            references.extend([ar])
+    return vaex.superagg.binners_to_1d(binners)

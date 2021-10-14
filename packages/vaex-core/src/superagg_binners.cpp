@@ -238,6 +238,37 @@ void add_binner_scalar(Module m, Base &base, std::string postfix) {
     add_binner_scalar_<T, Base, Module, true>(m, base, postfix + "_non_native");
 }
 
+py::object binners_to_1d(int64_t length, std::vector<Binner *> binners) {
+    using IndexType = uint64_t;
+    py::array_t<IndexType, py::array::c_style> indices1d_ar(length);
+    IndexType *indices1d = indices1d_ar.mutable_data(0);
+    {
+        py::gil_scoped_release gil;
+        int64_t dimensions = binners.size();
+        uint64_t *shapes = new uint64_t[dimensions];
+        uint64_t *strides = new uint64_t[dimensions];
+        // uint64_t length1d = 1;
+        for (size_t i = 0; i < dimensions; i++) {
+            shapes[i] = binners[i]->shape();
+            // length1d *= shapes[i];
+            printf("shape: %i\n", shapes[i]);
+        }
+        if (dimensions > 0) {
+            strides[0] = 1;
+            for (size_t i = 1; i < dimensions; i++) {
+                strides[i] = strides[i - 1] * shapes[i - 1];
+                printf("stride: %i\n", strides[i]);
+            }
+        }
+        std::fill(indices1d, indices1d + length, 0);
+        for (size_t i = 0; i < dimensions; i++) {
+            binners[i]->to_bins(0, indices1d, length, strides[i]);
+        }
+        delete[] strides;
+        delete[] shapes;
+    }
+    return indices1d_ar;
+}
 
 void add_binners(py::module &m, py::class_<Binner> &binner) {
     add_binner_ordinal<double>(m, binner, "float64");
@@ -263,5 +294,7 @@ void add_binners(py::module &m, py::class_<Binner> &binner) {
     add_binner_scalar<uint16_t>(m, binner, "uint16");
     add_binner_scalar<uint8_t>(m, binner, "uint8");
     add_binner_scalar<bool>(m, binner, "bool");
+
+    m.def("binners_to_1d", binners_to_1d);
 }
 } // namespace vaex
